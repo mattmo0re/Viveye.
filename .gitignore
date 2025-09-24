@@ -1,0 +1,6 @@
+node_modules
+webapp/node_modules
+webapp/dist
+webapp/.vite
+.DS_Store
+.env
