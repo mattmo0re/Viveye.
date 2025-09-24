@@ -1,7 +1,7 @@
 {
-  "name": "viveye",
+  "name": "vocalstudio",
   "version": "1.0.0",
-  "description": "Vocal-focused audio production web app",
+  "description": "vocalstudio – vocal-focused audio production web app",
   "type": "module",
   "scripts": {
     "dev": "vite",

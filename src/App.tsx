@@ -401,8 +401,11 @@ function App() {
     <div className="app-shell">
       <header className="app-header">
         <div>
-          <h1>Viveye Vocal Studio</h1>
-          <p>Purpose-built for vocalists who already have the beat. Capture, enhance, and master with studio-grade processing.</p>
+          <h1>vocalstudio</h1>
+          <p>
+            Purpose-built for vocalists who already have the beat. Capture, enhance, and master with
+            studio-grade processing.
+          </p>
         </div>
         <button
           type="button"
@@ -434,6 +437,57 @@ function App() {
               <span>{formatDuration(beatDuration)}</span>
             </div>
           )}
+        </section>
+
+        <section className="track-section">
+          <header>
+            <div>
+              <h2>Tracks</h2>
+              <p>Balance your imported beat and captured vocals before fine-tuning the mix.</p>
+            </div>
+            <div className="track-status">
+              <span className={`status-indicator ${isPlaying ? 'active' : ''}`}></span>
+              <span>{isPlaying ? 'Playback running' : 'Playback idle'}</span>
+            </div>
+          </header>
+          <div className="track-grid">
+            <div className={`track-card ${beatName ? 'track-card--ready' : 'track-card--pending'}`}>
+              <div className="track-meta">
+                <span className="track-label">Beat</span>
+                <strong>{beatName || 'Waiting for beat import'}</strong>
+              </div>
+              <div className="track-details">
+                <span>{beatDuration ? formatDuration(beatDuration) : '—:—'}</span>
+                <span>{isPlaying ? 'In the mix' : 'Standing by'}</span>
+              </div>
+              <div className="track-progress">
+                <span style={{ width: beatDuration ? '100%' : '35%' }}></span>
+              </div>
+            </div>
+            <div
+              className={`track-card ${
+                vocalDuration ? 'track-card--ready' : isRecording ? 'track-card--armed' : 'track-card--pending'
+              }`}
+            >
+              <div className="track-meta">
+                <span className="track-label">Vocal</span>
+                <strong>
+                  {isRecording
+                    ? 'Recording in progress'
+                    : vocalDuration
+                    ? `${formatDuration(vocalDuration)} captured`
+                    : 'Ready to record'}
+                </strong>
+              </div>
+              <div className="track-details">
+                <span>{vocalDuration ? formatDuration(vocalDuration) : '—:—'}</span>
+                <span>{isRecording ? 'Armed' : vocalDuration ? 'Take stored' : 'Standby'}</span>
+              </div>
+              <div className="track-progress">
+                <span style={{ width: vocalDuration ? '100%' : isRecording ? '60%' : '25%' }}></span>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section className="transport">

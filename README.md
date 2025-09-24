@@ -1,6 +1,6 @@
-# Viveye Vocal Studio
+# vocalstudio
 
-Viveye Vocal Studio is a focused audio production environment for artists who already have their beat. Drag and drop your instrumental, capture pristine vocals, shape the performance with studio-grade effects, and master a final bounce ready for sharing.
+vocalstudio is a focused audio production environment for artists who already have their beat. Drag and drop your instrumental, capture pristine vocals, shape the performance with studio-grade effects, and master a final bounce ready for sharing.
 
 ## Features
 
@@ -13,6 +13,7 @@ Viveye Vocal Studio is a focused audio production environment for artists who al
   - Lush algorithmic reverb with adjustable tail length and decay.
 - **Master-ready output** – real-time mix adjustments feed a mastering chain that you can export as a high-quality WebM file with a single click.
 - **Responsive, modern UI** – clean panels keep the focus on the sound while staying usable on desktops and tablets.
+- **Track overview** – dedicated beat and vocal lanes surface statuses at a glance so you can stay organised before mixing.
 
 ## Getting started
 
