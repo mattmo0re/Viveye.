@@ -37,6 +37,17 @@ type PlaybackStateListener = (isPlaying: boolean) => void;
 type RecordingStateListener = (isRecording: boolean) => void;
 type VocalUpdatedListener = (duration: number | null) => void;
 
+export type BeatAnalysis = {
+  duration: number;
+  tempo: number | null;
+  downbeatOffset: number | null;
+};
+
+export type PlaybackAlignment = {
+  alignmentShift: number | null;
+  quantizedTarget: number | null;
+};
+
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 export class AudioEngine {
@@ -49,6 +60,8 @@ export class AudioEngine {
   private beatGain!: GainNode;
 
   private vocalGain!: GainNode;
+
+  private vocalChainInput!: GainNode;
 
   private masterGain!: GainNode;
 
@@ -134,6 +147,17 @@ export class AudioEngine {
 
   onVocalUpdated: VocalUpdatedListener | null = null;
 
+  private beatTempo: number | null = null;
+
+  private beatDownbeatOffset: number | null = null;
+
+  private vocalOnset: number | null = null;
+
+  private lastAlignment: PlaybackAlignment = {
+    alignmentShift: null,
+    quantizedTarget: null
+  };
+
   async initialize() {
     if (this.context) return;
     const context = new AudioContext();
@@ -158,13 +182,13 @@ export class AudioEngine {
 
     this.beatGain = context.createGain();
     this.beatGain.gain.value = this.volumeSettings.beat;
+    this.beatGain.connect(this.masterGain);
 
     this.vocalGain = context.createGain();
     this.vocalGain.gain.value = this.volumeSettings.vocal;
 
-    const inputMix = context.createGain();
-    this.beatGain.connect(inputMix);
-    this.vocalGain.connect(inputMix);
+    this.vocalChainInput = context.createGain();
+    this.vocalGain.connect(this.vocalChainInput);
 
     this.eqLow = context.createBiquadFilter();
     this.eqLow.type = 'lowshelf';
@@ -213,7 +237,7 @@ export class AudioEngine {
     this.convolver.connect(this.reverbWet);
     this.reverbWet.connect(this.masterGain);
 
-    inputMix.connect(this.eqLow);
+    this.vocalChainInput.connect(this.eqLow);
     this.eqLow.connect(this.eqMid);
     this.eqMid.connect(this.eqHigh);
     this.eqHigh.connect(this.compressor);
@@ -268,16 +292,23 @@ export class AudioEngine {
     return this.vocalBuffer?.duration ?? null;
   }
 
-  async loadBeat(file: File) {
+  async loadBeat(file: File): Promise<BeatAnalysis> {
     const context = this.ensureContext();
     await context.resume();
     const arrayBuffer = await file.arrayBuffer();
     const buffer = await context.decodeAudioData(arrayBuffer);
     this.beatBuffer = buffer;
-    return buffer.duration;
+    const { tempo, downbeatOffset } = this.analyseBeat(buffer);
+    this.beatTempo = tempo;
+    this.beatDownbeatOffset = downbeatOffset;
+    return {
+      duration: buffer.duration,
+      tempo,
+      downbeatOffset
+    };
   }
 
-  async startPlayback() {
+  async startPlayback(): Promise<PlaybackAlignment> {
     const context = this.ensureContext();
     await context.resume();
     if (!this.beatBuffer && !this.vocalBuffer) {
@@ -286,19 +317,43 @@ export class AudioEngine {
     this.stopPlayback();
 
     const activeSources: AudioBufferSourceNode[] = [];
+    const baseStartTime = context.currentTime + 0.1;
+    this.lastAlignment = {
+      alignmentShift: null,
+      quantizedTarget: null
+    };
 
     if (this.beatBuffer) {
       const source = context.createBufferSource();
       source.buffer = this.beatBuffer;
+      source.playbackRate.value = 1;
       source.connect(this.beatGain);
       activeSources.push(source);
       this.currentBeatSource = source;
+      source.start(baseStartTime);
     }
 
     if (this.vocalBuffer) {
       const source = context.createBufferSource();
       source.buffer = this.vocalBuffer;
       source.connect(this.vocalGain);
+      let startTime = baseStartTime;
+      let offset = 0;
+      if (this.beatTempo && this.vocalOnset !== null) {
+        const beatLength = 60 / this.beatTempo;
+        const quantized = Math.round(this.vocalOnset / beatLength) * beatLength;
+        const clampedQuantized = Math.max(0, quantized);
+        if (clampedQuantized <= this.vocalOnset) {
+          offset = clamp(this.vocalOnset - clampedQuantized, 0, this.vocalBuffer.duration);
+        } else {
+          startTime += clampedQuantized - this.vocalOnset;
+        }
+        this.lastAlignment = {
+          alignmentShift: clampedQuantized - this.vocalOnset,
+          quantizedTarget: clampedQuantized
+        };
+      }
+      source.start(startTime, offset);
       activeSources.push(source);
       this.currentVocalSource = source;
     }
@@ -316,13 +371,13 @@ export class AudioEngine {
           this.onPlaybackStateChange?.(this._isPlaying);
         }
       };
-      source.start();
     });
 
     if (activeSources.length > 0) {
       this._isPlaying = true;
       this.onPlaybackStateChange?.(this._isPlaying);
     }
+    return this.lastAlignment;
   }
 
   stopPlayback() {
@@ -376,6 +431,7 @@ export class AudioEngine {
         const buffer = await blob.arrayBuffer();
         const decoded = await context.decodeAudioData(buffer);
         this.vocalBuffer = decoded;
+        this.vocalOnset = this.measureOnset(decoded);
         this.onVocalUpdated?.(decoded.duration);
         this.recordingResolver?.(decoded);
       } catch (error) {
@@ -527,6 +583,11 @@ export class AudioEngine {
 
   clearVocalTake() {
     this.vocalBuffer = null;
+    this.vocalOnset = null;
+    this.lastAlignment = {
+      alignmentShift: null,
+      quantizedTarget: null
+    };
     this.onVocalUpdated?.(null);
   }
 
@@ -537,6 +598,132 @@ export class AudioEngine {
       this.context.close();
       this.context = null;
     }
+  }
+
+  getBeatTempo() {
+    return this.beatTempo;
+  }
+
+  getBeatDownbeatOffset() {
+    return this.beatDownbeatOffset;
+  }
+
+  getLastAlignment() {
+    return this.lastAlignment;
+  }
+
+  private analyseBeat(buffer: AudioBuffer) {
+    try {
+      const sampleRate = buffer.sampleRate;
+      const step = Math.max(1, Math.floor(sampleRate / 500));
+      const downsampledRate = sampleRate / step;
+      const frames = Math.floor(buffer.length / step);
+      const envelope = new Float32Array(frames);
+      for (let i = 0; i < frames; i += 1) {
+        let sum = 0;
+        for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+          const channelData = buffer.getChannelData(channel);
+          sum += Math.abs(channelData[i * step] ?? 0);
+        }
+        envelope[i] = sum / buffer.numberOfChannels;
+      }
+
+      // Smooth the envelope for more stable autocorrelation.
+      const smoothed = new Float32Array(frames);
+      const smoothWindow = 4;
+      for (let i = 0; i < frames; i += 1) {
+        let acc = 0;
+        let count = 0;
+        for (let j = -smoothWindow; j <= smoothWindow; j += 1) {
+          const index = i + j;
+          if (index >= 0 && index < frames) {
+            acc += envelope[index];
+            count += 1;
+          }
+        }
+        smoothed[i] = count > 0 ? acc / count : 0;
+      }
+
+      const minBpm = 60;
+      const maxBpm = 180;
+      const minLag = Math.floor((60 / maxBpm) * downsampledRate);
+      const maxLag = Math.floor((60 / minBpm) * downsampledRate);
+      let bestLag = 0;
+      let bestScore = -Infinity;
+      for (let lag = minLag; lag <= maxLag; lag += 1) {
+        let score = 0;
+        for (let i = 0; i < frames - lag; i += 1) {
+          score += smoothed[i] * smoothed[i + lag];
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          bestLag = lag;
+        }
+      }
+
+      const tempo = bestLag > 0 ? (60 * downsampledRate) / bestLag : null;
+
+      let downbeatOffset: number | null = null;
+      if (tempo) {
+        const searchWindow = Math.min(frames, Math.floor(downsampledRate * 8));
+        let peak = 0;
+        for (let i = 0; i < searchWindow; i += 1) {
+          if (smoothed[i] > peak) {
+            peak = smoothed[i];
+          }
+        }
+        const threshold = peak * 0.6;
+        for (let i = 0; i < searchWindow; i += 1) {
+          if (smoothed[i] >= threshold) {
+            downbeatOffset = i / downsampledRate;
+            break;
+          }
+        }
+      }
+
+      return {
+        tempo,
+        downbeatOffset
+      };
+    } catch (error) {
+      console.warn('Beat analysis failed', error);
+      return {
+        tempo: null,
+        downbeatOffset: null
+      };
+    }
+  }
+
+  private measureOnset(buffer: AudioBuffer) {
+    const sampleRate = buffer.sampleRate;
+    const step = Math.max(1, Math.floor(sampleRate / 1000));
+    const frames = Math.floor(buffer.length / step);
+    const envelope = new Float32Array(frames);
+    for (let i = 0; i < frames; i += 1) {
+      let sum = 0;
+      for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+        const channelData = buffer.getChannelData(channel);
+        sum += Math.abs(channelData[i * step] ?? 0);
+      }
+      envelope[i] = sum / buffer.numberOfChannels;
+    }
+
+    let peak = 0;
+    for (let i = 0; i < frames; i += 1) {
+      if (envelope[i] > peak) {
+        peak = envelope[i];
+      }
+    }
+    if (peak <= 0.00001) {
+      return 0;
+    }
+    const threshold = peak * 0.2;
+    for (let i = 0; i < frames; i += 1) {
+      if (envelope[i] >= threshold) {
+        return i / (sampleRate / step);
+      }
+    }
+    return 0;
   }
 }
 

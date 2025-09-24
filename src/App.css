@@ -173,6 +173,23 @@ button.danger {
   overflow: hidden;
 }
 
+.tempo-readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.tempo-readout strong {
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: none;
+  opacity: 1;
+}
+
 .track-card::after {
   content: '';
   position: absolute;
@@ -278,6 +295,10 @@ button.danger {
 
 .timeline span {
   font-size: 1.1rem;
+}
+
+.timeline span strong {
+  font-weight: 600;
 }
 
 .status-message {

@@ -3,7 +3,9 @@ import AudioEngine, {
   CompressorSettings,
   DelaySettings,
   EQSettings,
+  BeatAnalysis,
   ReverbSettings,
+  PlaybackAlignment,
   VolumeSettings
 } from './audio/AudioEngine';
 import SliderControl from './components/SliderControl';
@@ -62,7 +64,11 @@ function App() {
 
   const [beatName, setBeatName] = useState<string>('');
   const [beatDuration, setBeatDuration] = useState<number | null>(null);
+  const [beatTempo, setBeatTempo] = useState<number | null>(null);
+  const [downbeatOffset, setDownbeatOffset] = useState<number | null>(null);
   const [vocalDuration, setVocalDuration] = useState<number | null>(null);
+  const [alignmentShift, setAlignmentShift] = useState<number | null>(null);
+  const [alignmentTarget, setAlignmentTarget] = useState<number | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('Drop in your beat to get started.');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -98,14 +104,24 @@ function App() {
       setErrorMessage(null);
       try {
         setStatusMessage('Loading beat...');
-        const duration = await engineRef.current.loadBeat(file);
-        setBeatDuration(duration);
+        const analysis: BeatAnalysis = await engineRef.current.loadBeat(file);
+        setBeatDuration(analysis.duration);
+        setBeatTempo(analysis.tempo);
+        setDownbeatOffset(analysis.downbeatOffset);
+        setAlignmentShift(null);
+        setAlignmentTarget(null);
         setBeatName(file.name);
-        setStatusMessage('Beat ready. Set your levels and record when you are inspired.');
+        setStatusMessage(
+          analysis.tempo
+            ? `Beat ready. Tempo locked at ${analysis.tempo.toFixed(1)} BPM.`
+            : 'Beat ready. Set your levels and record when you are inspired.'
+        );
       } catch (error) {
         console.error(error);
         setErrorMessage('Could not load the beat. Please try a different file.');
         setStatusMessage('Drop in your beat to get started.');
+        setBeatTempo(null);
+        setDownbeatOffset(null);
       }
     },
     []
@@ -152,8 +168,25 @@ function App() {
     if (!engineRef.current) return;
     setErrorMessage(null);
     try {
-      await engineRef.current.startPlayback();
-      setStatusMessage('Playback rolling. Adjust effects in real time.');
+      const alignment: PlaybackAlignment = await engineRef.current.startPlayback();
+      setAlignmentShift(alignment.alignmentShift);
+      setAlignmentTarget(alignment.quantizedTarget);
+      if (alignment.alignmentShift !== null) {
+        const shiftMs = Math.round(alignment.alignmentShift * 1000);
+        if (shiftMs === 0) {
+          setStatusMessage('Playback rolling. Vocal take already locked to the grid.');
+        } else if (shiftMs > 0) {
+          setStatusMessage(
+            `Playback rolling. Vocal pushed forward ${shiftMs}ms to flow with the beat.`
+          );
+        } else {
+          setStatusMessage(
+            `Playback rolling. Vocal pulled back ${Math.abs(shiftMs)}ms to stay on beat.`
+          );
+        }
+      } else {
+        setStatusMessage('Playback rolling. Adjust effects in real time.');
+      }
     } catch (error) {
       console.error(error);
       setErrorMessage((error as Error).message);
@@ -163,6 +196,8 @@ function App() {
   const handleStop = useCallback(() => {
     engineRef.current?.stopPlayback();
     setStatusMessage('Playback stopped. Ready for adjustments.');
+    setAlignmentShift(null);
+    setAlignmentTarget(null);
   }, []);
 
   const handleRecordToggle = useCallback(async () => {
@@ -173,6 +208,8 @@ function App() {
       if (engine.isRecording) {
         await engine.stopRecording();
         setStatusMessage('Recording stopped. Review your take.');
+        setAlignmentShift(null);
+        setAlignmentTarget(null);
       } else {
         if (engine.beatDuration) {
           await engine.startPlayback();
@@ -212,6 +249,8 @@ function App() {
 
   const clearVocal = useCallback(() => {
     engineRef.current?.clearVocalTake();
+    setAlignmentShift(null);
+    setAlignmentTarget(null);
   }, []);
 
   useEffect(() => {
@@ -474,6 +513,10 @@ function App() {
                 <span>{beatDuration ? formatDuration(beatDuration) : '—:—'}</span>
                 <span>{isPlaying ? 'In the mix' : 'Standing by'}</span>
               </div>
+              <div className="tempo-readout">
+                <span>Tempo</span>
+                <strong>{beatTempo ? `${beatTempo.toFixed(1)} BPM` : 'Analyzing…'}</strong>
+              </div>
               <div className="track-progress">
                 <span style={{ width: beatDuration ? '100%' : '35%' }}></span>
               </div>
@@ -496,6 +539,18 @@ function App() {
               <div className="track-details">
                 <span>{vocalDuration ? formatDuration(vocalDuration) : '—:—'}</span>
                 <span>{isRecording ? 'Armed' : vocalDuration ? 'Take stored' : 'Standby'}</span>
+              </div>
+              <div className="tempo-readout">
+                <span>Alignment</span>
+                <strong>
+                  {alignmentShift === null
+                    ? 'Waiting for playback'
+                    : alignmentShift === 0
+                    ? 'Locked to grid'
+                    : alignmentShift > 0
+                    ? `+${Math.round(alignmentShift * 1000)}ms`
+                    : `${Math.round(alignmentShift * 1000)}ms`}
+                </strong>
               </div>
               <div className="track-progress">
                 <span style={{ width: vocalDuration ? '100%' : isRecording ? '60%' : '25%' }}></span>
@@ -538,6 +593,28 @@ function App() {
           <div>
             <h3>Vocal Take</h3>
             <span>{formatDuration(vocalDuration)}</span>
+          </div>
+          <div>
+            <h3>Grid</h3>
+            <span>
+              {beatTempo
+                ? `${beatTempo.toFixed(1)} BPM${
+                    downbeatOffset !== null ? ` • Downbeat @ ${downbeatOffset.toFixed(2)}s` : ''
+                  }`
+                : 'Tempo analysis unavailable'}
+            </span>
+          </div>
+          <div>
+            <h3>Vocal Sync</h3>
+            <span>
+              {alignmentTarget !== null
+                ? `Quantized start ${alignmentTarget.toFixed(2)}s${
+                    alignmentShift !== null
+                      ? ` • Shift ${alignmentShift > 0 ? '+' : ''}${Math.round(alignmentShift * 1000)}ms`
+                      : ''
+                  }`
+                : 'Awaiting playback alignment'}
+            </span>
           </div>
           <div>
             <h3>Status</h3>
