@@ -105,6 +105,8 @@ export class AudioEngine {
 
   private recordingResolver: RecordingResolver | null = null;
 
+  private recorderHeartbeat: number | null = null;
+
   private _isPlaying = false;
 
   private _isRecording = false;
@@ -419,7 +421,10 @@ export class AudioEngine {
     this.micSource.connect(this.vocalGain);
 
     this.vocalChunks = [];
-    this.vocalRecorder = new MediaRecorder(stream);
+    this.vocalRecorder = new MediaRecorder(stream, {
+      mimeType: this.selectSupportedMimeType(),
+      audioBitsPerSecond: 128000
+    });
     this.vocalRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         this.vocalChunks.push(event.data);
@@ -443,7 +448,16 @@ export class AudioEngine {
       }
     };
 
-    this.vocalRecorder.start();
+    this.vocalRecorder.start(1000);
+    this.recorderHeartbeat = window.setInterval(() => {
+      if (this.vocalRecorder?.state === 'recording') {
+        try {
+          this.vocalRecorder.requestData();
+        } catch (error) {
+          // Ignore requestData errors in unsupported browsers
+        }
+      }
+    }, 10000);
     this._isRecording = true;
     this.onRecordingStateChange?.(this._isRecording);
   }
@@ -455,11 +469,20 @@ export class AudioEngine {
     const promise = new Promise<AudioBuffer | null>((resolve) => {
       this.recordingResolver = resolve;
     });
+    try {
+      this.vocalRecorder.requestData();
+    } catch (error) {
+      // Some implementations throw if requestData is not allowed
+    }
     this.vocalRecorder.stop();
     return promise;
   }
 
   private cleanupMic() {
+    if (this.recorderHeartbeat !== null) {
+      window.clearInterval(this.recorderHeartbeat);
+      this.recorderHeartbeat = null;
+    }
     if (this.micSource) {
       try {
         this.micSource.disconnect();
@@ -475,6 +498,18 @@ export class AudioEngine {
     this.vocalRecorder = null;
     this.vocalChunks = [];
     this.recordingResolver = null;
+  }
+
+  private selectSupportedMimeType() {
+    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) {
+      return '';
+    }
+    const preferredTypes = [
+      'audio/webm;codecs=opus',
+      'audio/ogg;codecs=opus',
+      'audio/webm'
+    ];
+    return preferredTypes.find((type) => MediaRecorder.isTypeSupported(type)) ?? '';
   }
 
   setVolumeSettings(settings: Partial<VolumeSettings>) {
