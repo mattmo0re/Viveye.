@@ -1,0 +1,247 @@
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #e9ecf2;
+  background-color: #0b0e16;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(120% 120% at 50% 0%, #1a1f35 0%, #05060a 55%, #000 100%);
+}
+
+.app {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.app__header h1 {
+  font-size: 2.75rem;
+  margin: 0;
+  letter-spacing: 0.06em;
+}
+
+.app__tagline {
+  margin-top: 0.5rem;
+  color: #9ca8d6;
+  max-width: 44rem;
+}
+
+.app__content {
+  display: grid;
+  gap: 1.75rem;
+}
+
+.panel {
+  background: rgba(16, 21, 35, 0.88);
+  border: 1px solid rgba(102, 132, 255, 0.18);
+  border-radius: 20px;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-shadow: 0 24px 60px rgba(7, 12, 30, 0.45);
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  letter-spacing: 0.05em;
+}
+
+.panel__form {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.panel__input {
+  flex: 1 1 260px;
+  border-radius: 14px;
+  border: 1px solid rgba(117, 140, 255, 0.35);
+  padding: 0.85rem 1rem;
+  background: rgba(8, 12, 26, 0.7);
+  color: inherit;
+  font-size: 1rem;
+}
+
+.panel__input:focus {
+  outline: 2px solid rgba(117, 140, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.panel__button {
+  border: none;
+  border-radius: 14px;
+  padding: 0.85rem 1.6rem;
+  background: linear-gradient(135deg, #4f5bff 0%, #a970ff 100%);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.panel__button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.panel__button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(102, 120, 255, 0.35);
+}
+
+.panel__button--secondary {
+  background: rgba(28, 34, 58, 0.9);
+  color: #c7d2ff;
+  border: 1px solid rgba(105, 128, 255, 0.3);
+}
+
+.panel__button--secondary:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+.panel__button--primary {
+  font-size: 1.05rem;
+}
+
+.panel__actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.panel__hint {
+  margin: 0;
+  color: #92a1d4;
+  font-size: 0.95rem;
+}
+
+.panel__error {
+  margin: 0;
+  color: #ff7a7a;
+}
+
+.toggle-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.toggle {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: rgba(11, 15, 28, 0.85);
+  border: 1px solid rgba(86, 104, 185, 0.4);
+  border-radius: 16px;
+  align-items: flex-start;
+}
+
+.toggle input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: #6d7aff;
+  margin-top: 0.2rem;
+}
+
+.toggle strong {
+  display: block;
+}
+
+.toggle small {
+  color: #8fa1d8;
+}
+
+.slider-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.slider-group input[type='range'] {
+  width: 100%;
+  accent-color: #6573ff;
+}
+
+.slider-value {
+  font-size: 0.85rem;
+  color: #9bacdd;
+}
+
+.beat-card {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  background: rgba(12, 18, 34, 0.7);
+  padding: 1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(98, 120, 220, 0.4);
+}
+
+.beat-card__thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.beat-card__meta h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.beat-card__meta p {
+  margin: 0.2rem 0 0;
+  color: #9ca7d7;
+}
+
+.beat-card__summary {
+  display: inline-block;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(80, 102, 210, 0.25);
+  font-size: 0.75rem;
+  color: #ccd7ff;
+}
+
+.render-card {
+  background: rgba(10, 14, 25, 0.85);
+  border-radius: 14px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border: 1px solid rgba(75, 95, 180, 0.4);
+}
+
+.render-card audio {
+  width: 100%;
+}
+
+.app__footer {
+  color: #7f8fc9;
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+@media (min-width: 1024px) {
+  .app__content {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

@@ -1,0 +1,13 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: inherit;
+  background-color: #05060a;
+}
+
+button, input {
+  font: inherit;
+}
