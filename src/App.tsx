@@ -111,27 +111,41 @@ function App() {
     []
   );
 
+  const isAudioFile = useCallback((file: File) => {
+    if (file.type.startsWith('audio')) {
+      return true;
+    }
+
+    const audioExtensions = ['.wav', '.mp3', '.flac', '.aiff', '.aac', '.ogg', '.m4a', '.webm'];
+    const lowerName = file.name.toLowerCase();
+    return audioExtensions.some((extension) => lowerName.endsWith(extension));
+  }, []);
+
   const handleDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       const file = event.dataTransfer.files?.[0];
-      if (file && file.type.startsWith('audio')) {
+      if (file && isAudioFile(file)) {
         void handleBeatLoad(file);
       } else {
         setErrorMessage('Unsupported file. Please drop an audio file.');
       }
     },
-    [handleBeatLoad]
+    [handleBeatLoad, isAudioFile]
   );
 
   const handleFileInput = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (file) {
+        if (!isAudioFile(file)) {
+          setErrorMessage('Unsupported file. Please choose an audio file.');
+          return;
+        }
         void handleBeatLoad(file);
       }
     },
-    [handleBeatLoad]
+    [handleBeatLoad, isAudioFile]
   );
 
   const handlePlay = useCallback(async () => {
