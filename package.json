@@ -1,0 +1,25 @@
+{
+  "name": "vocalstudio",
+  "version": "1.0.0",
+  "description": "vocalstudio – vocal-focused audio production web app",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": ["audio", "production", "web"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^4.5.3",
+    "typescript": "^5.9.2",
+    "vite": "^6.0.5"
+  }
+}
